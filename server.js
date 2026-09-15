@@ -108,7 +108,7 @@ app.post('/process', upload.single('video'), async (req, res) => {
       ? `${cropFilter},scale=1080:1920,subtitles=${srtPath}:force_style='Fontsize=20,PrimaryColour=&HFFFFFF&,Outline=2'`
       : `${cropFilter},scale=1080:1920`;
 
-    await run('ffmpeg', ['-i', trimmed, '-vf', vf, '-preset', 'veryfast', '-c:a', 'copy', finalPath]);
+    await run('ffmpeg', ['-i', trimmed, '-vf', vf, '-threads', '2', '-preset', 'veryfast', '-c:a', 'copy', finalPath]);
 
     res.download(finalPath, () => cleanup([req.file.path, trimmed, srtPath, finalPath]));
   } catch (err) {
