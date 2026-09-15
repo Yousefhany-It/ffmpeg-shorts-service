@@ -78,7 +78,7 @@ app.post('/process', upload.single('video'), async (req, res) => {
       '-i', req.file.path,
       '-ss', String(start),
       '-to', String(end),
-      '-c:v', 'libx264', '-c:a', 'aac',
+      '-c:v', 'libx264', '-preset', 'veryfast', '-c:a', 'aac',
       trimmed,
     ]);
 
@@ -97,12 +97,16 @@ app.post('/process', upload.single('video'), async (req, res) => {
       fs.writeFileSync(srtPath, srt);
     }
 
-    // Crop/scale to 1080x1920 and burn in subtitles if present
+    // Crop/scale to 1080x1920 and burn in subtitles if present.
+    // Crop FIRST (cheap) to a 9:16 region, then scale DOWN to the final size —
+    // scaling up before cropping (the old approach) is much slower and can time out
+    // on landscape source videos.
+    const cropFilter = `crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'`;
     const vf = captions.length
-      ? `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,subtitles=${srtPath}:force_style='Fontsize=20,PrimaryColour=&HFFFFFF&,Outline=2'`
-      : `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920`;
+      ? `${cropFilter},scale=1080:1920,subtitles=${srtPath}:force_style='Fontsize=20,PrimaryColour=&HFFFFFF&,Outline=2'`
+      : `${cropFilter},scale=1080:1920`;
 
-    await run('ffmpeg', ['-i', trimmed, '-vf', vf, '-c:a', 'copy', finalPath]);
+    await run('ffmpeg', ['-i', trimmed, '-vf', vf, '-preset', 'veryfast', '-c:a', 'copy', finalPath]);
 
     res.download(finalPath, () => cleanup([req.file.path, trimmed, srtPath, finalPath]));
   } catch (err) {
