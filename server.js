@@ -73,12 +73,14 @@ app.post('/process', upload.single('video'), async (req, res) => {
     const { start, end } = req.body;
     const captions = JSON.parse(req.body.captions || '[]');
 
-    // Trim to the chosen segment
+    // Trim to the chosen segment using stream copy (no re-encoding) — this is
+    // dramatically lighter on CPU/memory than transcoding, which matters on
+    // memory-limited free-tier hosts.
     await run('ffmpeg', [
-      '-i', req.file.path,
       '-ss', String(start),
       '-to', String(end),
-      '-c:v', 'libx264', '-preset', 'veryfast', '-c:a', 'aac',
+      '-i', req.file.path,
+      '-c', 'copy',
       trimmed,
     ]);
 
